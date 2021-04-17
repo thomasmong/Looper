@@ -13,5 +13,5 @@
 #endif /* INC_FILE_FUNCTIONS_H_ */
 
 void CreateWaveFile(Sample* sample);
-void AddData(Sample* sample, uint8_t *data);
-void SetSizeBytes(Sample* sample);
+void AddData(Sample* sample, uint8_t *data, uint32_t nbytes);
+void SetHeader(Sample* sample);

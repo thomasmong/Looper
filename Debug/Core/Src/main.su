@@ -17,7 +17,7 @@ main.c:647:13:MX_GPIO_Init	72	static
 main.c:1009:6:BSP_AUDIO_IN_TransferComplete_CallBack	4	static
 main.c:1014:6:BSP_AUDIO_IN_HalfTransfer_CallBack	4	static
 main.c:1027:6:StartDefaultTask	16	static
-main.c:1043:6:SDTask	1704	static
+main.c:1043:6:SDTask	3240	static
 main.c:1103:6:AudioTask	24	static
 main.c:1152:6:HAL_TIM_PeriodElapsedCallback	16	static
 main.c:1168:6:Error_Handler	4	static,ignoring_inline_asm

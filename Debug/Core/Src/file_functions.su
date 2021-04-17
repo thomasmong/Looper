@@ -1,5 +1,5 @@
 file_functions.c:26:6:uint32toArray	16	static
 file_functions.c:34:6:uint16toArray	16	static
 file_functions.c:40:6:CreateWaveFile	80	static
-file_functions.c:106:6:AddData	32	static
-file_functions.c:127:6:SetSizeBytes	24	static
+file_functions.c:58:6:AddData	32	static
+file_functions.c:73:6:SetHeader	72	static

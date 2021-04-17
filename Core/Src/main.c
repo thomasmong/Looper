@@ -1074,16 +1074,17 @@ void SDTask(void const *argument) {
 	sprintf(sample1.nom, "Test1");
 	sample1.numchannels = 2;
 	sample1.samplelength = 2;
-	sample1.samplerate = 16000;
+	sample1.samplerate = 8000;
 	sample1.numsamples = 0;
 	CreateWaveFile(&sample1);
 
 	uint8_t data[512] = {0};
-	for (int j = 0; j < 512; ++j) {
-		data[j] = 25;
+	for (int j = 0; j < 2048; ++j) {
+		wdata[j] = 25;
 	}
 	AddData(&sample1, data);
 	//SetSizeBytes(&sample1);
+	AddData(&sample1, wdata, 2048);
 
 
 	/* Infinite loop */

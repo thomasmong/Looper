@@ -41,8 +41,8 @@ void MX_FATFS_Init(void);
 /* USER CODE BEGIN Prototypes */
 typedef struct Sample Sample;
 struct Sample{
-	FIL fichier;
 	char nom[10];
+	FIL fichier;
 	uint16_t samplerate; //in Hz
 	uint8_t samplelength; //in bytes
 	uint8_t numchannels; //1 : mono, 2: stereo

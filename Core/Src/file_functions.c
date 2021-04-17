@@ -45,55 +45,7 @@ void CreateWaveFile(Sample *sample) {
 	FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
 		Error_Handler();
 	} else {
-		//Write to the text file
-		uint8_t wtext[44];
-
-		sprintf(data_char, "RIFF");
-		memcpy(wtext, (uint8_t*) data_char, 4);
-
-		//filesize, unknow for now
-		uint32toArray((uint32_t) 36, data_uint);
-		memcpy(wtext + 4, data_uint, 4);
-
-		//file format
-		sprintf(data_char, "WAVE");
-		memcpy(wtext + 8, (uint8_t*) data_char, 4);
-
-		//Bloc format audio
-		sprintf(data_char, "fmt ");
-		memcpy(wtext + 12, (uint8_t*) data_char, 4);
-		//nombre d'octets du bloc
-		uint32toArray((uint32_t) 16, data_uint);
-		memcpy(wtext + 16, data_uint, 4);
-		//audio format
-		uint16toArray((uint16_t) 1, data_uint);
-		memcpy(wtext + 20, data_uint, 2);
-		//nbr canaux
-		uint16toArray((uint16_t) sample->numchannels, data_uint);
-		memcpy(wtext + 22, data_uint, 2);
-		//freq
-		uint32toArray((uint32_t) sample->samplerate, data_uint);
-		memcpy(wtext + 24, data_uint, 4);
-		//bytepersec
-		uint32toArray(
-				(uint32_t) sample->samplerate * sample->samplelength
-						* sample->numchannels, data_uint);
-		memcpy(wtext + 28, data_uint, 4);
-		//byteperbloc
-		uint16toArray((uint16_t) sample->samplelength * sample->numchannels,
-				data_uint);
-		memcpy(wtext + 32, data_uint, 2);
-		//bitspersample
-		uint16toArray((uint16_t) 8 * sample->samplelength, data_uint);
-		memcpy(wtext + 34, data_uint, 2);
-
-		//Bloc donnees
-		sprintf(data_char, "data");
-		memcpy(wtext + 36, (uint8_t*) data_char, 4);
-		//databytes
-		uint32toArray((uint32_t) 0, data_uint);
-		memcpy(wtext + 40, data_uint, 4);
-
+		uint8_t wtext[44] = { 0 };
 		res = f_write(&(sample->fichier), wtext, 44, (void*) &byteswritten);
 		if ((byteswritten == 0) || (res != FR_OK)) {
 			Error_Handler();
@@ -103,56 +55,85 @@ void CreateWaveFile(Sample *sample) {
 	}
 }
 
-void AddData(Sample* sample, uint8_t* data) {
+void AddData(Sample *sample, uint8_t *data, uint32_t nbytes) {
 
 	FRESULT res; /* FatFs function common result code */
 	uint32_t byteswritten; /* File write/read counts */
-	if (f_open(&(sample->fichier), sample->nom,
-	FA_OPEN_APPEND | FA_WRITE) != FR_OK) {
+	res = f_write(&(sample->fichier), data, nbytes,
+			(void*) &byteswritten);
+	if ((byteswritten == 0) || (res != FR_OK)) {
 		Error_Handler();
 	} else {
-		uint16_t a = strlen((char*) data);
-		res = f_write(&(sample->fichier), data, strlen((char*) data),
-				(void*) &byteswritten);
-		if ((byteswritten == 0) || (res != FR_OK)) {
-			Error_Handler();
-		} else {
-			sample->numsamples += strlen((char*) data)
-					/ (sample->numchannels * sample->samplelength);
-			f_sync(&(sample->fichier));
-		}
+		sample->numsamples += nbytes
+				/ (sample->numchannels * sample->samplelength);
+		f_sync(&(sample->fichier));
 	}
 }
 
-void SetSizeBytes(Sample *sample) {
+void SetHeader(Sample *sample) {
 
 	FRESULT res; /* FatFs function common result code */
 	uint32_t byteswritten; /* File write/read counts */
-	if (f_open(&(sample->fichier), sample->nom,
-	FA_WRITE | FA_OPEN_EXISTING) != FR_OK) {
+
+	//Write to the text file
+	uint8_t wtext[44];
+
+	sprintf(data_char, "RIFF");
+	memcpy(wtext, (uint8_t*) data_char, 4);
+
+	//filesize
+	uint32toArray(
+			(uint32_t) sample->numchannels * sample->numsamples
+					* sample->samplelength + 36, data_uint);
+	memcpy(wtext + 4, data_uint, 4);
+
+	//file format
+	sprintf(data_char, "WAVE");
+	memcpy(wtext + 8, (uint8_t*) data_char, 4);
+
+	//Bloc format audio
+	sprintf(data_char, "fmt ");
+	memcpy(wtext + 12, (uint8_t*) data_char, 4);
+	//nombre d'octets du bloc
+	uint32toArray((uint32_t) 16, data_uint);
+	memcpy(wtext + 16, data_uint, 4);
+	//audio format
+	uint16toArray((uint16_t) 1, data_uint);
+	memcpy(wtext + 20, data_uint, 2);
+	//nbr canaux
+	uint16toArray((uint16_t) sample->numchannels, data_uint);
+	memcpy(wtext + 22, data_uint, 2);
+	//freq
+	uint32toArray((uint32_t) sample->samplerate, data_uint);
+	memcpy(wtext + 24, data_uint, 4);
+	//bytepersec
+	uint32toArray(
+			(uint32_t) sample->samplerate * sample->samplelength
+					* sample->numchannels, data_uint);
+	memcpy(wtext + 28, data_uint, 4);
+	//byteperbloc
+	uint16toArray((uint16_t) sample->samplelength * sample->numchannels,
+			data_uint);
+	memcpy(wtext + 32, data_uint, 2);
+	//bitspersample
+	uint16toArray((uint16_t) 8 * sample->samplelength, data_uint);
+	memcpy(wtext + 34, data_uint, 2);
+
+	//Bloc donnees
+	sprintf(data_char, "data");
+	memcpy(wtext + 36, (uint8_t*) data_char, 4);
+	//databytes
+	uint32toArray(
+			(uint32_t) sample->numchannels * sample->numsamples
+					* sample->samplelength, data_uint);
+	memcpy(wtext + 40, data_uint, 4);
+
+	sample->fichier.fptr = 0;
+
+	res = f_write(&(sample->fichier), wtext, 44, (void*) &byteswritten);
+	if ((byteswritten == 0) || (res != FR_OK)) {
 		Error_Handler();
 	} else {
-		//filesize
-		uint32toArray(
-				(uint32_t) sample->numsamples * sample->numchannels
-						* sample->samplelength + 36, data_uint);
-		sample->fichier.fptr = 4;
-		res = f_write(&(sample->fichier), data_uint, 4, (void*) &byteswritten);
-		if ((byteswritten == 0) || (res != FR_OK)) {
-			Error_Handler();
-		} else {
-			//datasize
-			uint32toArray(
-					(uint32_t) sample->numsamples * sample->numchannels
-							* sample->samplelength, data_uint);
-			sample->fichier.fptr = 40;
-			res = f_write(&(sample->fichier), data_uint, 4,
-					(void*) &byteswritten);
-			if ((byteswritten == 0) || (res != FR_OK)) {
-				Error_Handler();
-			} else {
-				f_close(&(sample->fichier));
-			}
-		}
+		f_close(&(sample->fichier));
 	}
 }
