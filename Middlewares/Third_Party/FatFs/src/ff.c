@@ -3324,7 +3324,7 @@ FRESULT f_open (
 	if (!fp) return FR_INVALID_OBJECT;
 
 	/* Get logical drive */
-	//mode &= _FS_READONLY ? FA_READ : FA_READ | FA_WRITE | FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_OPEN_ALWAYS | FA_OPEN_APPEND | FA_SEEKEND;
+	mode &= _FS_READONLY ? FA_READ : FA_READ | FA_WRITE | FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_OPEN_ALWAYS | FA_OPEN_APPEND | FA_SEEKEND;
 	res = find_volume(&path, &fs, mode);
 	if (res == FR_OK) {
 		dj.obj.fs = fs;

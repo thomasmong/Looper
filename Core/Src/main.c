@@ -31,6 +31,7 @@
 #include "math.h"
 #include <string.h>
 #include "file_functions.h"
+#include "display_functions.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,6 +72,7 @@ typedef enum {
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc3;
 
 DMA2D_HandleTypeDef hdma2d;
 
@@ -92,10 +94,15 @@ SDRAM_HandleTypeDef hsdram1;
 osThreadId defaultTaskHandle;
 osThreadId SDHandle;
 osThreadId AudioHandle;
+osThreadId SetBPMHandle;
+osThreadId BPMHandle;
 /* USER CODE BEGIN PV */
 uint8_t workBuffer[2 * _MAX_SS];
-
 uint32_t audio_rec_buffer_state;
+uint8_t bpm = 60;
+ADC_ChannelConfTypeDef sConfig;
+char text[20];
+Sample sample1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -108,9 +115,12 @@ static void MX_LTDC_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_DMA2D_Init(void);
 static void MX_SAI2_Init(void);
+static void MX_ADC3_Init(void);
 void StartDefaultTask(void const *argument);
 void SDTask(void const *argument);
 void AudioTask(void const *argument);
+void SetBPMTask(void const *argument);
+void BPMTask(void const *argument);
 
 /* USER CODE BEGIN PFP */
 void RL_sep(uint16_t *buffer, uint16_t size) {
@@ -171,7 +181,7 @@ void RL_cat2(uint16_t *buffer, uint16_t size) {
  */
 int main(void) {
 	/* USER CODE BEGIN 1 */
-	uint8_t status = 0;
+
 	/* USER CODE END 1 */
 
 	/* Enable I-Cache---------------------------------------------------------*/
@@ -206,30 +216,13 @@ int main(void) {
 	MX_USART1_UART_Init();
 	MX_DMA2D_Init();
 	MX_SAI2_Init();
+	MX_ADC3_Init();
 	/* USER CODE BEGIN 2 */
-	BSP_LCD_Init();
-	BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS);
-	BSP_LCD_LayerDefaultInit(1,
-	LCD_FB_START_ADDRESS + BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * 4);
-	BSP_LCD_DisplayOn();
-	BSP_LCD_SelectLayer(1);
-	BSP_LCD_Clear(LCD_COLOR_WHITE);
-	BSP_LCD_SetFont(&Font12);
-	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-	BSP_LCD_SetTextColor(LCD_COLOR_LIGHTBLUE);
 
-	status = BSP_TS_Init(BSP_LCD_GetXSize(), BSP_LCD_GetYSize());
-	if (status != TS_OK) {
-		BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-		BSP_LCD_SetTextColor(LCD_COLOR_RED);
-		BSP_LCD_DisplayStringAt(0, BSP_LCD_GetYSize() - 95, (uint8_t*) "ERROR",
-				CENTER_MODE);
-		BSP_LCD_DisplayStringAt(0, BSP_LCD_GetYSize() - 80,
-				(uint8_t*) "Touchscreen cannot be initialized", CENTER_MODE);
-	} else {
-		BSP_LCD_DisplayStringAt(0, BSP_LCD_GetYSize() - 150,
-				(uint8_t*) "Realise avec amour", CENTER_MODE);
-	}
+	HomeScreen();
+	sConfig.Rank = ADC_REGULAR_RANK_1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+
 
 	/* USER CODE END 2 */
 
@@ -261,6 +254,14 @@ int main(void) {
 	/* definition and creation of Audio */
 	osThreadDef(Audio, AudioTask, osPriorityNormal, 0, 2048);
 	AudioHandle = osThreadCreate(osThread(Audio), NULL);
+
+	/* definition and creation of SetBPM */
+	osThreadDef(SetBPM, SetBPMTask, osPriorityHigh, 0, 512);
+	SetBPMHandle = osThreadCreate(osThread(SetBPM), NULL);
+
+	/* definition and creation of BPM */
+	osThreadDef(BPM, BPMTask, osPriorityIdle, 0, 128);
+	BPMHandle = osThreadCreate(osThread(BPM), NULL);
 
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -343,6 +344,53 @@ void SystemClock_Config(void) {
 	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
 		Error_Handler();
 	}
+}
+
+/**
+ * @brief ADC3 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_ADC3_Init(void) {
+
+	/* USER CODE BEGIN ADC3_Init 0 */
+
+	/* USER CODE END ADC3_Init 0 */
+
+	ADC_ChannelConfTypeDef sConfig = { 0 };
+
+	/* USER CODE BEGIN ADC3_Init 1 */
+
+	/* USER CODE END ADC3_Init 1 */
+	/** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+	 */
+	hadc3.Instance = ADC3;
+	hadc3.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+	hadc3.Init.Resolution = ADC_RESOLUTION_12B;
+	hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
+	hadc3.Init.ContinuousConvMode = DISABLE;
+	hadc3.Init.DiscontinuousConvMode = DISABLE;
+	hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+	hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+	hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+	hadc3.Init.NbrOfConversion = 1;
+	hadc3.Init.DMAContinuousRequests = DISABLE;
+	hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+	if (HAL_ADC_Init(&hadc3) != HAL_OK) {
+		Error_Handler();
+	}
+	/** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+	 */
+	sConfig.Channel = ADC_CHANNEL_6;
+	sConfig.Rank = ADC_REGULAR_RANK_1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+	if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN ADC3_Init 2 */
+
+	/* USER CODE END ADC3_Init 2 */
+
 }
 
 /**
@@ -661,8 +709,14 @@ static void MX_GPIO_Init(void) {
 	__HAL_RCC_GPIOH_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOE, LED14_Pin | LED15_Pin, GPIO_PIN_RESET);
+
+	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin,
 			GPIO_PIN_SET);
+
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(LED16_GPIO_Port, LED16_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOI, ARDUINO_D7_Pin | ARDUINO_D8_Pin | LCD_DISP_Pin,
@@ -672,11 +726,12 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(LCD_BL_CTRL_GPIO_Port, LCD_BL_CTRL_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(DCMI_PWR_EN_GPIO_Port, DCMI_PWR_EN_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOH,
+			DCMI_PWR_EN_Pin | LED13_Pin | LED17_Pin | LED11_Pin | LED12_Pin
+					| LED2_Pin | LED18_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOG, ARDUINO_D4_Pin | ARDUINO_D2_Pin | EXT_RST_Pin,
-			GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOG, ARDUINO_D2_Pin | EXT_RST_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : OTG_HS_OverCurrent_Pin */
 	GPIO_InitStruct.Pin = OTG_HS_OverCurrent_Pin;
@@ -734,20 +789,17 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF8_SPDIFRX;
 	HAL_GPIO_Init(SPDIF_RX0_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : ARDUINO_PWM_D9_Pin */
-	GPIO_InitStruct.Pin = ARDUINO_PWM_D9_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	/*Configure GPIO pins : BP2_Pin BP1_Pin */
+	GPIO_InitStruct.Pin = BP2_Pin | BP1_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
-	HAL_GPIO_Init(ARDUINO_PWM_D9_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : DCMI_D6_Pin DCMI_D7_Pin */
-	GPIO_InitStruct.Pin = DCMI_D6_Pin | DCMI_D7_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	/*Configure GPIO pins : LED14_Pin LED15_Pin */
+	GPIO_InitStruct.Pin = LED14_Pin | LED15_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
 	HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : QSPI_NCS_Pin */
@@ -778,20 +830,12 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : OTG_FS_PowerSwitchOn_Pin */
-	GPIO_InitStruct.Pin = OTG_FS_PowerSwitchOn_Pin;
+	/*Configure GPIO pins : OTG_FS_PowerSwitchOn_Pin LED16_Pin */
+	GPIO_InitStruct.Pin = OTG_FS_PowerSwitchOn_Pin | LED16_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(OTG_FS_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : DCMI_D5_Pin */
-	GPIO_InitStruct.Pin = DCMI_D5_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
-	HAL_GPIO_Init(DCMI_D5_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : ARDUINO_D7_Pin ARDUINO_D8_Pin LCD_DISP_Pin */
 	GPIO_InitStruct.Pin = ARDUINO_D7_Pin | ARDUINO_D8_Pin | LCD_DISP_Pin;
@@ -841,21 +885,13 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
 	HAL_GPIO_Init(ARDUINO_SCK_D13_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : DCMI_PWR_EN_Pin */
-	GPIO_InitStruct.Pin = DCMI_PWR_EN_Pin;
+	/*Configure GPIO pins : DCMI_PWR_EN_Pin LED13_Pin LED17_Pin LED11_Pin
+	 LED12_Pin LED2_Pin LED18_Pin */
+	GPIO_InitStruct.Pin = DCMI_PWR_EN_Pin | LED13_Pin | LED17_Pin | LED11_Pin
+			| LED12_Pin | LED2_Pin | LED18_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(DCMI_PWR_EN_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pins : DCMI_D4_Pin DCMI_D3_Pin DCMI_D0_Pin DCMI_D2_Pin
-	 DCMI_D1_Pin */
-	GPIO_InitStruct.Pin = DCMI_D4_Pin | DCMI_D3_Pin | DCMI_D0_Pin | DCMI_D2_Pin
-			| DCMI_D1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
 	HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : ARDUINO_PWM_CS_D5_Pin */
@@ -865,14 +901,6 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	GPIO_InitStruct.Alternate = GPIO_AF2_TIM5;
 	HAL_GPIO_Init(ARDUINO_PWM_CS_D5_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : ARDUINO_PWM_D10_Pin */
-	GPIO_InitStruct.Pin = ARDUINO_PWM_D10_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF1_TIM1;
-	HAL_GPIO_Init(ARDUINO_PWM_D10_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : LCD_INT_Pin */
 	GPIO_InitStruct.Pin = LCD_INT_Pin;
@@ -896,20 +924,18 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
 	HAL_GPIO_Init(ULPI_NXT_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : ARDUINO_D4_Pin ARDUINO_D2_Pin EXT_RST_Pin */
-	GPIO_InitStruct.Pin = ARDUINO_D4_Pin | ARDUINO_D2_Pin | EXT_RST_Pin;
+	/*Configure GPIO pins : BP_JOYSTICK_Pin RMII_RXER_Pin */
+	GPIO_InitStruct.Pin = BP_JOYSTICK_Pin | RMII_RXER_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : ARDUINO_D2_Pin EXT_RST_Pin */
+	GPIO_InitStruct.Pin = ARDUINO_D2_Pin | EXT_RST_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
-
-	/*Configure GPIO pins : ARDUINO_A4_Pin ARDUINO_A5_Pin ARDUINO_A1_Pin ARDUINO_A2_Pin
-	 ARDUINO_A3_Pin */
-	GPIO_InitStruct.Pin = ARDUINO_A4_Pin | ARDUINO_A5_Pin | ARDUINO_A1_Pin
-			| ARDUINO_A2_Pin | ARDUINO_A3_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : ULPI_STP_Pin ULPI_DIR_Pin */
 	GPIO_InitStruct.Pin = ULPI_STP_Pin | ULPI_DIR_Pin;
@@ -943,12 +969,6 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
 	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : RMII_RXER_Pin */
-	GPIO_InitStruct.Pin = RMII_RXER_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(RMII_RXER_GPIO_Port, &GPIO_InitStruct);
-
 	/*Configure GPIO pins : RMII_REF_CLK_Pin RMII_MDIO_Pin RMII_CRS_DV_Pin */
 	GPIO_InitStruct.Pin = RMII_REF_CLK_Pin | RMII_MDIO_Pin | RMII_CRS_DV_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -957,11 +977,11 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : ARDUINO_A0_Pin */
-	GPIO_InitStruct.Pin = ARDUINO_A0_Pin;
+	/*Configure GPIO pins : PA0 PA3 */
+	GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_3;
 	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(ARDUINO_A0_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : DCMI_HSYNC_Pin PA6 */
 	GPIO_InitStruct.Pin = DCMI_HSYNC_Pin | GPIO_PIN_6;
@@ -979,21 +999,13 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
 	HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : ULPI_CLK_Pin ULPI_D0_Pin */
-	GPIO_InitStruct.Pin = ULPI_CLK_Pin | ULPI_D0_Pin;
+	/*Configure GPIO pin : ULPI_CLK_Pin */
+	GPIO_InitStruct.Pin = ULPI_CLK_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : ARDUINO_PWM_D6_Pin */
-	GPIO_InitStruct.Pin = ARDUINO_PWM_D6_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF9_TIM12;
-	HAL_GPIO_Init(ARDUINO_PWM_D6_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(ULPI_CLK_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : ARDUINO_MISO_D12_Pin ARDUINO_MOSI_PWM_D11_Pin */
 	GPIO_InitStruct.Pin = ARDUINO_MISO_D12_Pin | ARDUINO_MOSI_PWM_D11_Pin;
@@ -1070,7 +1082,6 @@ void SDTask(void const *argument) {
 		}
 	}
 
-	Sample sample1;
 	sprintf(sample1.nom, "Test1");
 	sample1.numchannels = 2;
 	sample1.samplelength = 2;
@@ -1078,6 +1089,8 @@ void SDTask(void const *argument) {
 	sample1.numsamples = 0;
 	CreateWaveFile(&sample1);
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	uint8_t data[512] = {0};
 	for (int j = 0; j < 512; ++j) {
 		data[j] = 25;
@@ -1085,6 +1098,12 @@ void SDTask(void const *argument) {
 	AddData(&sample1, data);
 	//SetSizeBytes(&sample1);
 
+=======
+	vTaskResume(AudioHandle);
+>>>>>>> Stashed changes
+=======
+	vTaskResume(AudioHandle);
+>>>>>>> Stashed changes
 
 	/* Infinite loop */
 	for (;;) {
@@ -1102,6 +1121,7 @@ void SDTask(void const *argument) {
 /* USER CODE END Header_AudioTask */
 void AudioTask(void const *argument) {
 	/* USER CODE BEGIN AudioTask */
+	vTaskSuspend(AudioHandle);
 	if (BSP_AUDIO_IN_OUT_Init(INPUT_DEVICE_DIGITAL_MICROPHONE_2,
 	OUTPUT_DEVICE_HEADPHONE, 16000, DEFAULT_AUDIO_IN_BIT_RESOLUTION,
 	DEFAULT_AUDIO_IN_CHANNEL_NBR) == AUDIO_OK) {
@@ -1124,21 +1144,79 @@ void AudioTask(void const *argument) {
 	BSP_AUDIO_OUT_Play((uint16_t*) AUDIO_BUFFER_OUT, AUDIO_BLOCK_SIZE * 2);
 	/* Infinite loop */
 	for (;;) {
-		while (audio_rec_buffer_state != BUFFER_OFFSET_HALF)
-			;
-		RL_sep((uint16_t*) AUDIO_BUFFER_IN, AUDIO_BLOCK_SIZE);
-		treatment();
-		RL_cat2((uint16_t*) AUDIO_BUFFER_OUT, AUDIO_BLOCK_SIZE);
-		while (audio_rec_buffer_state != BUFFER_OFFSET_FULL)
-			;
-		RL_sep((uint16_t*) (AUDIO_BUFFER_IN + (AUDIO_BLOCK_SIZE)),
+		while (audio_rec_buffer_state != BUFFER_OFFSET_HALF) {
+		};
+		//RL_sep((uint16_t*) AUDIO_BUFFER_IN, AUDIO_BLOCK_SIZE);
+		//treatment();
+		//RL_cat2((uint16_t*) AUDIO_BUFFER_OUT, AUDIO_BLOCK_SIZE);
+		memcpy((uint16_t*) AUDIO_BUFFER_OUT, (uint16_t*) AUDIO_BUFFER_IN,
 		AUDIO_BLOCK_SIZE);
-		treatment();
-		RL_cat2((uint16_t*) (AUDIO_BUFFER_OUT + (AUDIO_BLOCK_SIZE)),
-		AUDIO_BLOCK_SIZE);
-		osDelay(2);
+		AddData(&sample1, (uint8_t*) AUDIO_BUFFER_OUT,
+		AUDIO_BLOCK_SIZE * 2);
+		while (audio_rec_buffer_state != BUFFER_OFFSET_FULL) {
+		};
+
+		//		RL_sep((uint16_t*) (AUDIO_BUFFER_IN + (AUDIO_BLOCK_SIZE)),
+		//		AUDIO_BLOCK_SIZE);
+		//		treatment();
+		//		RL_cat2((uint16_t*) (AUDIO_BUFFER_OUT + (AUDIO_BLOCK_SIZE)),
+		//		AUDIO_BLOCK_SIZE);
+		memcpy((uint16_t*) (AUDIO_BUFFER_OUT + AUDIO_BLOCK_SIZE),
+				(uint16_t*) (AUDIO_BUFFER_IN + AUDIO_BLOCK_SIZE),
+				AUDIO_BLOCK_SIZE);
+		AddData(&sample1, (uint8_t*) AUDIO_BUFFER_OUT,
+		AUDIO_BLOCK_SIZE * 2);
 	}
+	SetHeader(&sample1);
 	/* USER CODE END AudioTask */
+}
+
+/* USER CODE BEGIN Header_SetBPMTask */
+/**
+ * @brief Function implementing the SetBPM thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_SetBPMTask */
+void SetBPMTask(void const *argument) {
+	/* USER CODE BEGIN SetBPMTask */
+	/* Infinite loop */
+	for (;;) {
+		sConfig.Channel = ADC_CHANNEL_6;
+		HAL_ADC_ConfigChannel(&hadc3, &sConfig);
+		HAL_ADC_Start(&hadc3);
+		while (HAL_ADC_PollForConversion(&hadc3, 100) != HAL_OK)
+			;
+		bpm = 40 + (HAL_ADC_GetValue(&hadc3) >> 5);
+		sprintf(text, "%3u", bpm);
+		BSP_LCD_DisplayStringAtLine(5, (uint8_t*) &text);
+		vTaskDelay(100);
+	}
+	/* USER CODE END SetBPMTask */
+}
+
+/* USER CODE BEGIN Header_BPMTask */
+/**
+ * @brief Function implementing the BPM thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_BPMTask */
+void BPMTask(void const *argument) {
+	/* USER CODE BEGIN BPMTask */
+	TickType_t startTime;
+	/* Infinite loop */
+	for (;;) {
+		startTime = xTaskGetTickCount();
+		HAL_GPIO_TogglePin(LED11_GPIO_Port, LED11_Pin);
+		HAL_GPIO_TogglePin(LED12_GPIO_Port, LED12_Pin);
+		HAL_GPIO_TogglePin(LED13_GPIO_Port, LED13_Pin);
+		HAL_GPIO_TogglePin(LED14_GPIO_Port, LED14_Pin);
+		HAL_GPIO_TogglePin(LED15_GPIO_Port, LED15_Pin);
+		HAL_GPIO_TogglePin(LED17_GPIO_Port, LED17_Pin);
+		vTaskDelayUntil(&startTime, 30000 / bpm);
+	}
+	/* USER CODE END BPMTask */
 }
 
 /**

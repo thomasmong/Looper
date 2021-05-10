@@ -1,3 +1,4 @@
+"Core/Src/display_functions.o"
 "Core/Src/file_functions.o"
 "Core/Src/freertos.o"
 "Core/Src/ft5336.o"
@@ -16,6 +17,8 @@
 "Core/Src/wm8994.o"
 "Core/Startup/startup_stm32f746nghx.o"
 "Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.o"
+"Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc.o"
+"Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_adc_ex.o"
 "Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_cortex.o"
 "Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_dma.o"
 "Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_dma2d.o"

@@ -1,5 +1,7 @@
 core_cm7.h:2229:22:SCB_EnableICache	4	static,ignoring_inline_asm
 core_cm7.h:2281:22:SCB_EnableDCache	24	static,ignoring_inline_asm
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 main.c:116:6:RL_sep	24	static
 main.c:129:6:RL_cat	24	static
 main.c:142:6:treatment	16	static
@@ -21,3 +23,34 @@ main.c:1043:6:SDTask	1704	static
 main.c:1103:6:AudioTask	24	static
 main.c:1152:6:HAL_TIM_PeriodElapsedCallback	16	static
 main.c:1168:6:Error_Handler	4	static,ignoring_inline_asm
+=======
+=======
+>>>>>>> Stashed changes
+main.c:126:6:RL_sep	24	static
+main.c:139:6:RL_cat	24	static
+main.c:152:6:treatment	16	static
+main.c:159:6:RL_cat2	24	static
+main.c:182:5:main	160	static
+main.c:288:6:SystemClock_Config	216	static
+main.c:354:13:MX_ADC3_Init	24	static
+main.c:401:13:MX_DMA2D_Init	8	static
+main.c:435:13:MX_LTDC_Init	64	static
+main.c:494:13:MX_SAI2_Init	8	static
+main.c:566:13:MX_SDMMC1_SD_Init	4	static
+main.c:593:13:MX_USART1_UART_Init	8	static
+main.c:624:13:MX_DMA_Init	16	static
+main.c:646:13:MX_FMC_Init	40	static
+main.c:695:13:MX_GPIO_Init	72	static
+main.c:1021:6:BSP_AUDIO_IN_TransferComplete_CallBack	4	static
+main.c:1026:6:BSP_AUDIO_IN_HalfTransfer_CallBack	4	static
+main.c:1039:6:StartDefaultTask	16	static
+main.c:1055:6:SDTask	608	static
+main.c:1108:6:AudioTask	24	static
+main.c:1167:6:SetBPMTask	16	static
+main.c:1191:6:BPMTask	24	static
+main.c:1216:6:HAL_TIM_PeriodElapsedCallback	16	static
+main.c:1232:6:Error_Handler	4	static,ignoring_inline_asm
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
