@@ -21,7 +21,13 @@
 
 /*--------------------------------*/
 
-void HomeScreen(void) {
+
+void DefSlot(Slot* slots){
+	for (int i = 0; i < 8; ++i)
+		slots[i].number = i + 1;
+}
+
+void HomeScreen(Slot* slots) {
 	BSP_LCD_Init();
 	BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS);
 	BSP_LCD_LayerDefaultInit(1,
@@ -44,8 +50,12 @@ void HomeScreen(void) {
 		uint8_t pasX = BSP_LCD_GetXSize() / 4;
 		uint8_t pasY = BSP_LCD_GetYSize() / 2;
 		uint8_t pad = (pasX > pasY) ? pasY * 0.8 : pasX * 0.8;
+		DefSlot(slots);
 		for (int i = 0; i < 4; ++i) {
 			for (int j = 0; j < 2; ++j) {
+				slots[i+4*j].length = pad;
+				slots[i+4*j].leftTopCornerX = (i+0.5)*pasX-pad/2;
+				slots[i+4*j].leftTopCornerY = (j+0.5)*pasY-pad/2;
 				BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
 				BSP_LCD_FillRect((i+0.5)*pasX-pad/2, (j+0.5)*pasY-pad/2, pad, pad);
 				BSP_LCD_SetTextColor(LCD_COLOR_RED);

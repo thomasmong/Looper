@@ -12,4 +12,5 @@
 #endif /* INC_DISPLAY_FUNCTIONS_H_ */
 
 
-void HomeScreen(void);
+void HomeScreen(Slot*);
+void DefSlot(Slot*);

@@ -1,0 +1,2 @@
+audio_functions.c:26:6:CreateSamples	24	static
+audio_functions.c:38:6:CloseSamples	24	static

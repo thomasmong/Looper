@@ -42,12 +42,23 @@ void MX_FATFS_Init(void);
 typedef struct Sample Sample;
 struct Sample{
 	FIL fichier;
-	char nom[10];
+	char nom[15];
 	uint16_t samplerate; //in Hz
 	uint8_t samplelength; //in bytes
 	uint8_t numchannels; //1 : mono, 2: stereo
 	uint32_t numsamples; //nombre d'échantillons
 };
+
+
+typedef struct Slot Slot;
+struct Slot{
+	uint8_t number;
+	Sample sample;
+	uint16_t leftTopCornerX;
+	uint16_t leftTopCornerY;
+	uint8_t length;
+};
+
 /* USER CODE END Prototypes */
 #ifdef __cplusplus
 }
